@@ -52,4 +52,4 @@ async function startGame(email,version,loader) {
 }
 
 
-module.exports = startGame,loginBrowser,logout
+module.exports = {startGame,loginBrowser,logout}
