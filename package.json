@@ -1,8 +1,15 @@
 {
   "name": "@jackcooper04/portablemc_npm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jackcooper04/portablemc_npm.git"
+},
+"publishConfig": {
+  "registry": "https://npm.pkg.github.com/"
+},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
