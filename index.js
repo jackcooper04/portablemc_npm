@@ -3,9 +3,28 @@ const fs = require('fs');
 const path = require('path');
 const { Console } = require('console');
 const homedir = require('os').homedir();
+
 var logPath = path.join(__dirname, 'logs');
 var AUTHENTICATED_USER = {};
-var portableMCLocation = 'portablemc';
+var AUTHENTICATED_USER_EMAIL = "";
+var portableMCLocation = false;
+
+function config(dir) {
+  if (!dir) {
+    dir = path.join(homedir, 'AppData', 'Roaming', 'Python', 'Python312', 'Scripts', 'portablemc.exe');
+  };
+
+  if (fs.existsSync(dir)) {
+    const PACKAGE_DIRECTORY = path.join(__dirname, 'portablemc.exe');
+    fs.copyFileSync(dir, PACKAGE_DIRECTORY);
+    portableMCLocation = 'portablemc';
+  } else {
+    return false;
+  };
+}
+
+
+
 
 async function executeMC(params, detached) {
   return new Promise((resolve) => {
@@ -57,69 +76,82 @@ async function executeMC(params, detached) {
 
 async function authenticate(email) {
   return new Promise(async (resolve) => {
-  var minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
-  if (fs.existsSync(minecraftDIR)) {
-    var authFile = path.join(minecraftDIR, 'portablemc_auth.json');
-    if (fs.existsSync(authFile)) {
-      var authData = JSON.parse(fs.readFileSync(authFile));
-      var loggedUsers = authData.microsoft.sessions;
-      if (loggedUsers[email]) {
-        var authObj = {
-          username:loggedUsers[email].username,
-          uuid:loggedUsers[email].uuid,
-          email:email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
+    var minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
+    if (fs.existsSync(minecraftDIR)) {
+      var authFile = path.join(minecraftDIR, 'portablemc_auth.json');
+      if (fs.existsSync(authFile)) {
+        var authData = JSON.parse(fs.readFileSync(authFile));
+        var loggedUsers = authData.microsoft.sessions;
+        if (loggedUsers[email]) {
+          var authObj = {
+            username: loggedUsers[email].username,
+            uuid: loggedUsers[email].uuid,
+            email: email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
+          };
+          console.log('user exists')
+          AUTHENTICATED_USER = authObj;
+          AUTHENTICATED_USER_EMAIL = email;
+          resolve(AUTHENTICATED_USER);
+          return;
         };
-        console.log('user exists')
-        AUTHENTICATED_USER = authObj;
-        resolve(authObj);
-        return;
       };
     };
-  };
-  const userLoggedIn = await loginBrowser(email);
-  var authData = JSON.parse(fs.readFileSync(authFile));
-      var loggedUsers = authData.microsoft.sessions;
-  resolve(loggedUsers);
+
+
+    const userLoggedIn = await loginBrowser(email);
+    var authData = JSON.parse(fs.readFileSync(authFile));
+    var loggedUsers = authData.microsoft.sessions;
+    if (loggedUsers[email]) {
+      var authObj = {
+        username: loggedUsers[email].username,
+        uuid: loggedUsers[email].uuid,
+        email: email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
+      };
+      console.log('user logged in')
+      AUTHENTICATED_USER = authObj;
+      AUTHENTICATED_USER_EMAIL = email;
+      resolve(AUTHENTICATED_USER);
+      return;
+    };
   })
 }
 
 async function loginBrowser(email) {
   return new Promise(async (resolve) => {
-    const login = await executeMC(['login', '--auth-service', 'microsoft', email],true);
+    const login = await executeMC(['login', '--auth-service', 'microsoft', email], true);
     resolve(true);
   });
-  //   setTimeout(function(){
-  //    return true;
-  //  }, 2000);
-  //
 };
+
+
 
 async function logout(email) {
-  const logout = await executeMC(['logout', '--auth-service', 'microsoft', email]);
+  return new Promise(async (resolve) => {
+    const logout = await executeMC(['logout', '--auth-service', 'microsoft', email]);
+    AUTHENTICATED_USER = {};
+    AUTHENTICATED_USER_EMAIL = "";
+  })
 };
 
-async function startGame(email, version, loader, logs) {
-  if (!version) {
-    version = 'release'
-  };
-
-  if (!loader) {
-    const start = await executeMC(['start', version, '-l', email], logs);
-  } else {
-    const start = await executeMC(['start', loader + ":" + version, '-l', email]);
-  }
-
+async function startGame(options, logs) {
+  return new Promise(async (resolve) => {
+    if (options.loader == undefined) {
+      const start = await executeMC(['start', options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
+    } else {
+      const start = await executeMC(['start', options.loader + ":" + options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
+    };
+  })
 };
 
-//startGame('jc3053765@gmail.com','1.8','',true)
-async function test() {
-  const test1 = await authenticate('jackmeta004@gmail.com')
-  console.log(test1)
-}
-test();
-async function declareLogFile(path) {
+function declareLogFile(path) {
   logPath = path;
 };
 
+async function start() {
+  const test2 = authenticate('jc3053765@gmail.com');
+  const test = await startGame({ version: '1.7.10' })
+}
+start();
 
-module.exports = { startGame, loginBrowser, logout, declareLogFile }
+
+module.exports = { config, startGame, authenticate, logout, declareLogFile }
