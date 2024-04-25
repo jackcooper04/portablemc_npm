@@ -1,8 +1,9 @@
 let fs = require('fs');
 const path = require('path');
-var logPath = path.join(__dirname, 'logs');
+var logPath = process.argv[2]
 
 process.stdout.write('\x1Bc')
+
 console.log(fs.readFileSync(path.join(logPath, 'latest.log')).toString())
 var currentLog = fs.readFileSync(path.join(logPath, 'latest.log')).toString();
 var blankLock = true;
