@@ -15,6 +15,8 @@ function config(options) {
   };
   if (options.LOG_LOCATION) {
     declareLogFile(options.LOG_LOCATION);
+  } else {
+    declareLogFile(path.join(__dirname,'logs'))
   }
 
   if (fs.existsSync(options.EXE_LOCATION)) {
