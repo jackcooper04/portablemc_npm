@@ -124,7 +124,7 @@ function executeMCDetached(params, detached) {
 
 }
 
-async function getAuthedUsers() {
+function getAuthedUsers() {
   var minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
   var authFile = JSON.parse(fs.readFileSync(path.join(minecraftDIR, 'portablemc_auth.json')));
   var sessions = authFile.microsoft.sessions;
