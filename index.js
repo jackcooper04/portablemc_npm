@@ -24,7 +24,7 @@ function config(options) {
     fs.copyFileSync(options.EXE_LOCATION, PACKAGE_DIRECTORY);
     portableMCLocation = PACKAGE_DIRECTORY;
   } else {
-    throw new Error('portableMC.exe not found')
+    throw new Error('portableMC.exe not found');
     return false;
   };
 };
