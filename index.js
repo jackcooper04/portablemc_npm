@@ -21,8 +21,7 @@ function config(options) {
 
   if (fs.existsSync(options.EXE_LOCATION)) {
     const PACKAGE_DIRECTORY = path.join(__dirname, 'portablemc.exe');
-    fs.copyFileSync(options.EXE_LOCATION, PACKAGE_DIRECTORY);
-    portableMCLocation = PACKAGE_DIRECTORY;
+    portableMCLocation = options.EXE_LOCATION;
   } else {
     throw new Error('portableMC.exe not found');
   };
