@@ -25,7 +25,6 @@ function config(options) {
     portableMCLocation = PACKAGE_DIRECTORY;
   } else {
     throw new Error('portableMC.exe not found');
-    return false;
   };
 };
 
@@ -125,6 +124,23 @@ function executeMCDetached(params, detached) {
 
 }
 
+async function getAuthedUsers() {
+  var minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
+  var authFile = JSON.parse(fs.readFileSync(path.join(minecraftDIR, 'portablemc_auth.json')));
+  var sessions = authFile.microsoft.sessions;
+  var loggedProfiles = new Array();
+  for (idx in sessions) {
+    var obj = {
+      email_safe: idx.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2"),
+      email:idx,
+      username: sessions[idx].username,
+      uuid: sessions[idx].uuid,
+    }
+    loggedProfiles.push(obj)
+  };
+  return loggedProfiles;
+  
+};
 
 async function authenticate(email) {
   return new Promise(async (resolve) => {
@@ -216,4 +232,4 @@ function getLogPath(){
 
 
 
-module.exports = { config, startGame, authenticate, logout,getLogPath,startGameDetached }
+module.exports = { config, startGame, authenticate, logout,getLogPath,startGameDetached,getAuthedUsers }
