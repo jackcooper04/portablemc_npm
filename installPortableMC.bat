@@ -28,7 +28,7 @@ if '%errorlevel%' NEQ '0' (
     CD /D "%~dp0"
 :--------------------------------------    
 @"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
-choco install -y python3
-RefreshEnv && python --version && pip install --user portablemc[certifi] && setx path "%path%;%appdata%\Python\Python312\Scripts" && timeout 5 && pause
+choco install -y python3 --force
+RefreshEnv && python --version && pip install --user portablemc[certifi] && pause
 
 

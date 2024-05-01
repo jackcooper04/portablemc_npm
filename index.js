@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 const path = require('path');
 const { Console } = require('console');
@@ -155,7 +154,6 @@ async function authenticate(email) {
             uuid: loggedUsers[email].uuid,
             email: email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
           };
-          console.log(`User: ${authObj.email} (${authObj.username}) Authenticated!`)
           AUTHENTICATED_USER = authObj;
           AUTHENTICATED_USER_EMAIL = email;
           resolve(AUTHENTICATED_USER);
