@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 const path = require('path');
 const { Console } = require('console');
@@ -10,21 +9,24 @@ var AUTHENTICATED_USER_EMAIL = "";
 var portableMCLocation = false;
 
 function config(options) {
-  if (!options.EXE_LOCATION) {
-    options.EXE_LOCATION = path.join(homedir, 'AppData', 'Roaming', 'Python', 'Python312', 'Scripts', 'portablemc.exe');
-  };
-  if (options.LOG_LOCATION) {
-    declareLogFile(options.LOG_LOCATION);
-  } else {
-    declareLogFile(path.join(__dirname,'logs'))
-  }
+  return new Promise( (resolve) => {
+    if (!options.EXE_LOCATION) {
+      options.EXE_LOCATION = path.join(homedir, 'AppData', 'Roaming', 'Python', 'Python312', 'Scripts', 'portablemc.exe');
+    };
+    if (options.LOG_LOCATION) {
+      declareLogFile(options.LOG_LOCATION);
+    } else {
+      declareLogFile(path.join(__dirname, 'logs'))
+    }
 
-  if (fs.existsSync(options.EXE_LOCATION)) {
-    const PACKAGE_DIRECTORY = path.join(__dirname, 'portablemc.exe');
-    portableMCLocation = options.EXE_LOCATION;
-  } else {
-    throw new Error('portableMC.exe not found');
-  };
+    if (fs.existsSync(options.EXE_LOCATION)) {
+      const PACKAGE_DIRECTORY = path.join(__dirname, 'portablemc.exe');
+      portableMCLocation = options.EXE_LOCATION;
+      const genVersions = executeMCDetached(['search'], false)
+    } else {
+      throw new Error('portableMC.exe not found');
+    };
+  })
 };
 
 
@@ -46,7 +48,7 @@ async function executeMC(params, detached) {
     )
 
     if (detached) {
-      const viewer = spawn('cmd.exe', ['/C', 'node', path.join(__dirname, 'loggerViewer.js'),logPath],
+      const viewer = spawn('cmd.exe', ['/C', 'node', path.join(__dirname, 'loggerViewer.js'), logPath],
         {
           detached: true,
         }
@@ -80,46 +82,46 @@ async function executeMC(params, detached) {
 
 function executeMCDetached(params, detached) {
 
-    const logOutput = fs.createWriteStream(path.join(logPath, 'latest.log'));
-    const logger = new Console({ stdout: logOutput });
-    if (detached == undefined) {
-      detached = false;
-    }
+  const logOutput = fs.createWriteStream(path.join(logPath, 'latest.log'));
+  const logger = new Console({ stdout: logOutput });
+  if (detached == undefined) {
+    detached = false;
+  }
 
-    const { spawn } = require('node:child_process');
-    const exe = spawn('cmd.exe', ['/C', portableMCLocation, ...params],
+  const { spawn } = require('node:child_process');
+  const exe = spawn('cmd.exe', ['/C', portableMCLocation, ...params],
+    {
+      stdio: 'pipe'
+    }
+  )
+
+  if (detached) {
+    const viewer = spawn('cmd.exe', ['/C', 'node', path.join(__dirname, 'loggerViewer.js'), logPath],
       {
-        stdio: 'pipe'
+        detached: true,
       }
     )
+  }
+  exe.on('exit', function (code) {
+    //console.log('child exit code (spawn)', code);
+    let filename = `${(new Date().toJSON().slice(0, 19))}.log`.replace(/:/g, ";");
 
-    if (detached) {
-      const viewer = spawn('cmd.exe', ['/C', 'node', path.join(__dirname, 'loggerViewer.js'),logPath],
-        {
-          detached: true,
-        }
-      )
-    }
-    exe.on('exit', function (code) {
-      console.log('child exit code (spawn)', code);
-      let filename = `${(new Date().toJSON().slice(0, 19))}.log`.replace(/:/g, ";");
+    let writer = fs.createWriteStream(path.join(logPath, filename));
+    writer.write(fs.readFileSync(path.join(logPath, 'latest.log')));
 
-      let writer = fs.createWriteStream(path.join(logPath, filename));
-      writer.write(fs.readFileSync(path.join(logPath, 'latest.log')));
+    fs.writeFileSync(path.join(logPath, 'latest.log'), '');
 
-      fs.writeFileSync(path.join(logPath, 'latest.log'), '');
+  })
 
-    })
-
-    exe.stdout.on('data', (data) => {
-      logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
-    });
+  exe.stdout.on('data', (data) => {
+    logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
+  });
 
 
-    exe.stderr.on('data', (data) => {
-      logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
-      //console.error(data.toString());
-    });
+  exe.stderr.on('data', (data) => {
+    logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
+    //console.error(data.toString());
+  });
 
 }
 
@@ -131,14 +133,14 @@ function getAuthedUsers() {
   for (idx in sessions) {
     var obj = {
       email_safe: idx.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2"),
-      email:idx,
+      email: idx,
       username: sessions[idx].username,
       uuid: sessions[idx].uuid,
     }
     loggedProfiles.push(obj)
   };
   return loggedProfiles;
-  
+
 };
 
 async function authenticate(email) {
@@ -155,7 +157,6 @@ async function authenticate(email) {
             uuid: loggedUsers[email].uuid,
             email: email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
           };
-          console.log(`User: ${authObj.email} (${authObj.username}) Authenticated!`)
           AUTHENTICATED_USER = authObj;
           AUTHENTICATED_USER_EMAIL = email;
           resolve(AUTHENTICATED_USER);
@@ -174,7 +175,6 @@ async function authenticate(email) {
         uuid: loggedUsers[email].uuid,
         email: email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
       };
-      console.log('user logged in')
       AUTHENTICATED_USER = authObj;
       AUTHENTICATED_USER_EMAIL = email;
       resolve(AUTHENTICATED_USER);
@@ -212,23 +212,37 @@ async function startGame(options, logs) {
   })
 };
 
-function startGameDetached(options, logs) {
+async function installGame(options, logs) {
+  return new Promise(async (resolve) => {
     if (options.loader == undefined) {
-      executeMCDetached(['start', options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
+      const start = await executeMC(['start', options.version, '--dry'], logs);
+      resolve(true)
     } else {
-      executeMCDetached(['start', options.loader + ":" + options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
+      const start = await executeMC(['start', options.loader + ":" + options.version, '--dry'], logs);
+      resolve(true)
     };
-  
+  })
+
+
+};
+
+function startGameDetached(options, logs) {
+  if (options.loader == undefined) {
+    executeMCDetached(['start', options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
+  } else {
+    executeMCDetached(['start', options.loader + ":" + options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
+  };
+
 };
 
 function declareLogFile(path) {
   logPath = path;
 };
 
-function getLogPath(){
+function getLogPath() {
   return logPath;
 }
 
 
 
-module.exports = { config, startGame, authenticate, logout,getLogPath,startGameDetached,getAuthedUsers }
+module.exports = { config, startGame, authenticate, logout, getLogPath, startGameDetached, getAuthedUsers, installGame }
