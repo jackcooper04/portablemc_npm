@@ -6,6 +6,7 @@ const homedir = require('os').homedir();
 var logPath = ""
 var AUTHENTICATED_USER = {};
 var AUTHENTICATED_USER_EMAIL = "";
+var MAIN_DIRECTORY = "";
 var portableMCLocation = false;
 
 function config(options) {
@@ -17,7 +18,11 @@ function config(options) {
       declareLogFile(options.LOG_LOCATION);
     } else {
       declareLogFile(path.join(__dirname, 'logs'))
-    }
+    };
+
+    if (options.MAIN_DIR) {
+      MAIN_DIRECTORY = "--main-dir "+options.MAIN_DIR;
+    };
 
     if (fs.existsSync(options.EXE_LOCATION)) {
       const PACKAGE_DIRECTORY = path.join(__dirname, 'portablemc.exe');
@@ -41,7 +46,7 @@ async function executeMC(params, detached) {
     }
 
     const { spawn } = require('node:child_process');
-    const exe = spawn('cmd.exe', ['/C', portableMCLocation, ...params],
+    const exe = spawn('cmd.exe', ['/C', portableMCLocation,MAIN_DIRECTORY ,...params],
       {
         stdio: 'pipe'
       }
@@ -89,7 +94,7 @@ function executeMCDetached(params, detached) {
   }
 
   const { spawn } = require('node:child_process');
-  const exe = spawn('cmd.exe', ['/C', portableMCLocation, ...params],
+  const exe = spawn('cmd.exe', ['/C', portableMCLocation, MAIN_DIRECTORY,...params],
     {
       stdio: 'pipe'
     }
