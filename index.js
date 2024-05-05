@@ -7,10 +7,11 @@ var logPath = ""
 var AUTHENTICATED_USER = {};
 var AUTHENTICATED_USER_EMAIL = "";
 var MAIN_DIRECTORY = "";
+MAIN_DIRECTORY_PATH = "";
 var portableMCLocation = false;
 
 function config(options) {
-  return new Promise( (resolve) => {
+  return new Promise((resolve) => {
     if (!options.EXE_LOCATION) {
       options.EXE_LOCATION = path.join(homedir, 'AppData', 'Roaming', 'Python', 'Python312', 'Scripts', 'portablemc.exe');
     };
@@ -21,7 +22,8 @@ function config(options) {
     };
 
     if (options.MAIN_DIR) {
-      MAIN_DIRECTORY = ["--main-dir",options.MAIN_DIR];
+      MAIN_DIRECTORY = ["--main-dir", options.MAIN_DIR];
+      MAIN_DIRECTORY_PATH = options.MAIN_DIR;
     };
 
     if (fs.existsSync(options.EXE_LOCATION)) {
@@ -46,7 +48,7 @@ async function executeMC(params, detached) {
     }
 
     const { spawn } = require('node:child_process');
-    const exe = spawn('cmd.exe', ['/C', portableMCLocation,...MAIN_DIRECTORY ,...params],
+    const exe = spawn('cmd.exe', ['/C', portableMCLocation, ...MAIN_DIRECTORY, ...params],
       {
         stdio: 'pipe'
       }
@@ -94,7 +96,7 @@ function executeMCDetached(params, detached) {
   }
 
   const { spawn } = require('node:child_process');
-  const exe = spawn('cmd.exe', ['/C', portableMCLocation, ...MAIN_DIRECTORY,...params],
+  const exe = spawn('cmd.exe', ['/C', portableMCLocation, ...MAIN_DIRECTORY, ...params],
     {
       stdio: 'pipe'
     }
@@ -128,29 +130,42 @@ function executeMCDetached(params, detached) {
     //console.error(data.toString());
   });
 
-}
-
+};
 function getAuthedUsers() {
-  var minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
+  if (MAIN_DIRECTORY_PATH) {
+    minecraftDIR = MAIN_DIRECTORY_PATH
+  } else {
+    minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
+  }
   var authFile = JSON.parse(fs.readFileSync(path.join(minecraftDIR, 'portablemc_auth.json')));
-  var sessions = authFile.microsoft.sessions;
-  var loggedProfiles = new Array();
-  for (idx in sessions) {
-    var obj = {
-      email_safe: idx.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2"),
-      email: idx,
-      username: sessions[idx].username,
-      uuid: sessions[idx].uuid,
-    }
-    loggedProfiles.push(obj)
-  };
-  return loggedProfiles;
+  if (authFile.microsoft) {
+    var sessions = authFile.microsoft.sessions;
+    var loggedProfiles = new Array();
+    for (idx in sessions) {
+      var obj = {
+        email_safe: idx.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2"),
+        email: idx,
+        username: sessions[idx].username,
+        uuid: sessions[idx].uuid,
+      }
+      loggedProfiles.push(obj)
+    };
+    return loggedProfiles;
+  } else {
+    return authFile;
+  }
+
 
 };
 
 async function authenticate(email) {
   return new Promise(async (resolve) => {
-    var minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
+    if (MAIN_DIRECTORY_PATH) {
+      minecraftDIR = MAIN_DIRECTORY_PATH
+    } else {
+      minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
+    }
+
     if (fs.existsSync(minecraftDIR)) {
       var authFile = path.join(minecraftDIR, 'portablemc_auth.json');
       if (fs.existsSync(authFile)) {
