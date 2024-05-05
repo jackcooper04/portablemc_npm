@@ -21,7 +21,7 @@ function config(options) {
     };
 
     if (options.MAIN_DIR) {
-      MAIN_DIRECTORY = "--main-dir "+options.MAIN_DIR;
+      MAIN_DIRECTORY = ["--main-dir",options.MAIN_DIR];
     };
 
     if (fs.existsSync(options.EXE_LOCATION)) {
@@ -46,7 +46,7 @@ async function executeMC(params, detached) {
     }
 
     const { spawn } = require('node:child_process');
-    const exe = spawn('cmd.exe', ['/C', portableMCLocation,MAIN_DIRECTORY ,...params],
+    const exe = spawn('cmd.exe', ['/C', portableMCLocation,...MAIN_DIRECTORY ,...params],
       {
         stdio: 'pipe'
       }
@@ -94,7 +94,7 @@ function executeMCDetached(params, detached) {
   }
 
   const { spawn } = require('node:child_process');
-  const exe = spawn('cmd.exe', ['/C', portableMCLocation, MAIN_DIRECTORY,...params],
+  const exe = spawn('cmd.exe', ['/C', portableMCLocation, ...MAIN_DIRECTORY,...params],
     {
       stdio: 'pipe'
     }
