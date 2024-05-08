@@ -170,18 +170,20 @@ async function authenticate(email) {
       var authFile = path.join(minecraftDIR, 'portablemc_auth.json');
       if (fs.existsSync(authFile)) {
         var authData = JSON.parse(fs.readFileSync(authFile));
-        var loggedUsers = authData.microsoft.sessions;
-        if (loggedUsers[email]) {
-          var authObj = {
-            username: loggedUsers[email].username,
-            uuid: loggedUsers[email].uuid,
-            email: email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
+        if (authData.microsoft) {
+          var loggedUsers = authData.microsoft.sessions;
+          if (loggedUsers[email]) {
+            var authObj = {
+              username: loggedUsers[email].username,
+              uuid: loggedUsers[email].uuid,
+              email: email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
+            };
+            AUTHENTICATED_USER = authObj;
+            AUTHENTICATED_USER_EMAIL = email;
+            resolve(AUTHENTICATED_USER);
+            return;
           };
-          AUTHENTICATED_USER = authObj;
-          AUTHENTICATED_USER_EMAIL = email;
-          resolve(AUTHENTICATED_USER);
-          return;
-        };
+        }
       };
     };
 
@@ -205,7 +207,7 @@ async function authenticate(email) {
 
 async function loginBrowser(email) {
   return new Promise(async (resolve) => {
-    const login = await executeMC(['login', '--auth-service', 'microsoft', email], true);
+    const login = await executeMC(['login', '--auth-service', 'microsoft', email], false);
     resolve(true);
   });
 };
