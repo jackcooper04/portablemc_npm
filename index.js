@@ -12,23 +12,24 @@ var logPath = path.join(__dirname, 'logs');
 var previousAction = 'boot';
 var bootStarted = false;
 var programStart = false;
-var crashReported = false;
+var quitCleanly = true;
 
 // OS Dependent Variables
 
 // Pre-set to Windows
-var EXPECTED_PMC_PATH = path.join('C:\\Users\\user\\AppData\\Roaming\\Python\\Python312\\Scripts\\portablemc.exe')
+var EXPECTED_PMC_PATH = path.join('C:\\Users\\jc305\\AppData\\Roaming\\Python\\Python312\\Scripts\\portablemc.exe')
 
 // Config Set
 
-async function executeMC(params, action, detached) {
+
+
+
+// portableMC Communicator
+async function executeMC(params, action) {
   return new Promise((resolve) => {
+    quitCleanly = true;
     const logOutput = fs.createWriteStream(path.join(logPath,action,'latest.log'));
     const logger = new Console({ stdout: logOutput });
-    if (detached == undefined) {
-      detached = false;
-    }
-
     const { spawn } = require('node:child_process');
     const exe = spawn('cmd.exe', ['/C', EXPECTED_PMC_PATH, ...params],
       {
@@ -38,31 +39,21 @@ async function executeMC(params, action, detached) {
     exe.on('exit', function (code) {
       if (bootStarted) {
         bootStarted = false;
-        logger.log('BOOTEND\nPROGRAMEND')
+        logger.log('BOOTEND\nPROGRAMEND');
       } else {
-        logger.log('GAMEEND\nPROGRAMEND')
-      }
-      
-      //console.log('child exit code (spawn)', code);
+        logger.log('GAMEEND\nPROGRAMEND');
+      };
       let filename = `${(new Date().toJSON().slice(0, 19))}.log`.replace(/:/g, ";");
-
       let writer = fs.createWriteStream(path.join(logPath, action,filename));
       writer.write(fs.readFileSync(path.join(logPath, action,'latest.log')));
-
       fs.writeFileSync(path.join(logPath,action, 'latest.log'), '');
       bootStarted = false;
       previousAction = 'boot';
-      if (crashReported) {
-        console.log('gameCrashed!');
-        crashReported = false;
-      }
-      resolve(true);
-
-    })
+      resolve(quitCleanly);
+    });
 
     exe.stdout.on('data', (data) => {
       if (!bootStarted && !programStart) {
-        console.log('somethings not right')
         logger.log('PROGRAMSTART');
         logger.log('BOOTSTART');
         bootStarted = true;
@@ -84,28 +75,19 @@ async function executeMC(params, action, detached) {
           };
           console.log(action[idx])
           logger.log(action[idx]);
-          if (action[idx].includes('#@!@# Game crashed!')) {
-            crashReported = true;
-          }
+          if (action[idx].includes('Game crashed!')) {
+            quitCleanly = false;
+          };
           previousAction = identfyAction;
         };
-     
-      //logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
-    });
-
-
-    exe.stderr.on('data', (data) => {
-      //logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
-      console.error('CRASH CRASH WOOHOHOHO');
     });
   });
-
-}
+};
 
 async function test() {
   //const test = await executeMC(['login','--auth-service','microsoft','jc3053765@gmail.com'],'auth')
-  const test = await executeMC(['start','forge:1.8','-l','email'],'game')
-
+  //const test = await executeMC(['start','forge:1.8','-l','jc3053765@gmail.com'],'game')
+  console.log(test)
   console.log('finished')
 }
 test();
