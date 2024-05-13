@@ -8,6 +8,7 @@ const fs = require('fs')
 
 // Global Variables
 var PACKAGE_CONFIGURED = false;
+var MAIN_DIRECTORY_PATH = "";
 var logPath = path.join(__dirname, 'logs');
 var previousAction = 'boot';
 var bootStarted = false;
@@ -18,16 +19,59 @@ var quitCleanly = true;
 var EXPECTED_PMC_PATH = "";
 if (platform == "win32") {
   EXPECTED_PMC_PATH = path.join('C:\\Users\\jc305\\AppData\\Roaming\\Python\\Python312\\Scripts\\portablemc.exe')
+  try {
+      var pythonScriptPath = path.join(homedir,'AppData','Roaming','Python');
+      var scriptSources = fs.readdirSync(pythonScriptPath); 
+
+      for (idx in scriptSources) {
+          var scriptPath = fs.existsSync(path.join(pythonScriptPath,scriptSources[idx],'Scripts','portablemc.exe'));
+          if (scriptPath) {
+              portableMCExeFound = true;
+              EXPECTED_PMC_PATH = path.join(pythonScriptPath,scriptSources[idx],'Scripts','portablemc.exe')
+          };
+      };
+  } catch (error) {
+      EXPECTED_PMC_PATH = "";
+  };
 } else if (platform == 'linux') {
   EXPECTED_PMC_PATH = path.join(homedir,'.local','bin','portablemc')
 } else {
   throw new Error('Platform Not Suppourted');
 };
 
-// Pre-set to Windows
 
 
 // Config Set
+var ACTUAL_PMC_LOCATION = "";
+function config(options) {
+  return new Promise((resolve) => {
+    if (!options.EXE_LOCATION) {
+      options.EXE_LOCATION = EXPECTED_PMC_PATH;
+    };
+    if (options.LOG_LOCATION) {
+      logPath = options.LOG_LOCATION;
+    };
+    if (!fs.existsSync(path.join(logPath,'auth'))) {
+      fs.mkdirSync(path.join(logPath,'auth'));
+    };
+    if (!fs.existsSync(path.join(logPath,'game'))) {
+      fs.mkdirSync(path.join(logPath,'game'));
+    };
+    if (!fs.existsSync(path.join(logPath,'other'))) {
+      fs.mkdirSync(path.join(logPath,'other'));
+    };
+    
+    if (options.MAIN_DIR) {
+      MAIN_DIRECTORY_PATH = options.MAIN_DIR;
+    };
+    if (fs.existsSync(options.EXE_LOCATION)) {
+      ACTUAL_PMC_LOCATION = options.EXE_LOCATION;
+      //const genVersions = executeMC(['search']);
+    } else {
+      throw new Error('portableMC.exe not found');
+    };
+  })
+};
 
 
 
@@ -35,6 +79,9 @@ if (platform == "win32") {
 // portableMC Communicator
 async function executeMC(params, action) {
   return new Promise((resolve) => {
+    if (!action) {
+      action = 'other';
+    }
     quitCleanly = true;
     const logOutput = fs.createWriteStream(path.join(logPath,action,'latest.log'));
     const logger = new Console({ stdout: logOutput });
@@ -102,4 +149,4 @@ async function test() {
   console.log(platform)
   console.log('finished')
 }
-test();
+config({})
