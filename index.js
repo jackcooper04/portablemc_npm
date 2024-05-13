@@ -1,7 +1,7 @@
 // Dependencies
 const platform = require('os').platform();
 const path = require('path');
-const { Console } = require('console');
+const { Console, error } = require('console');
 const homedir = require('os').homedir();
 const { spawn } = require('node:child_process');
 const fs = require('fs')
@@ -15,9 +15,17 @@ var programStart = false;
 var quitCleanly = true;
 
 // OS Dependent Variables
+var EXPECTED_PMC_PATH = "";
+if (platform == "win32") {
+  EXPECTED_PMC_PATH = path.join('C:\\Users\\jc305\\AppData\\Roaming\\Python\\Python312\\Scripts\\portablemc.exe')
+} else if (platform == 'linux') {
+  EXPECTED_PMC_PATH = path.join(homedir,'.local','bin','portablemc')
+} else {
+  throw new Error('Platform Not Suppourted');
+};
 
 // Pre-set to Windows
-var EXPECTED_PMC_PATH = path.join('C:\\Users\\jc305\\AppData\\Roaming\\Python\\Python312\\Scripts\\portablemc.exe')
+
 
 // Config Set
 
@@ -89,9 +97,9 @@ async function executeMC(params, action) {
 };
 
 async function test() {
-  const test = await executeMC(['login','--auth-service','microsoft','jc3053765@gmail.com'],'auth')
+  //const test = await executeMC(['login','--auth-service','microsoft','jc3053765@gmail.com'],'auth')
   //const test = await executeMC(['start','forge:1.8','-l','jc3053765@gmail.com'],'game')
-  console.log(test)
+  console.log(platform)
   console.log('finished')
 }
 test();
