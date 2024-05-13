@@ -31,7 +31,7 @@ async function executeMC(params, action) {
     const logOutput = fs.createWriteStream(path.join(logPath,action,'latest.log'));
     const logger = new Console({ stdout: logOutput });
     const { spawn } = require('node:child_process');
-    const exe = spawn('cmd.exe', ['/C', EXPECTED_PMC_PATH, ...params],
+    const exe = spawn(EXPECTED_PMC_PATH, [...params],
       {
         stdio: 'pipe'
       }
@@ -81,11 +81,15 @@ async function executeMC(params, action) {
           previousAction = identfyAction;
         };
     });
+    exe.stderr.on('data', (data) => {
+      //logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
+      console.error(data.toString());
+    });
   });
 };
 
 async function test() {
-  //const test = await executeMC(['login','--auth-service','microsoft','jc3053765@gmail.com'],'auth')
+  const test = await executeMC(['login','--auth-service','microsoft','jc3053765@gmail.com'],'auth')
   //const test = await executeMC(['start','forge:1.8','-l','jc3053765@gmail.com'],'game')
   console.log(test)
   console.log('finished')
