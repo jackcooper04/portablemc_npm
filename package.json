@@ -1,9 +1,12 @@
 {
   "name": "@jackcooper04/portablemc_npm",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "description": "",
   "main": "index.js",
-  "os": ["win32","linux"],
+  "os": [
+    "win32",
+    "linux"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/jackcooper04/portablemc_npm.git"
