@@ -17,9 +17,9 @@ This package also requires that [portablemc](https://github.com/mindstorm38/port
 ### .config(options)
 This function tells the package some key pieces of information:
 
-**EXE_LOCATION** : Path to the PortableMC Application
-**LOG_LOCATION** : Path to logs location
-**MAIN_DIR** : Path where minecraft will be installed
+**EXE_LOCATION** : Path to the PortableMC Application<br>
+**LOG_LOCATION** : Path to logs location<br>
+**MAIN_DIR** : Path where minecraft will be installed<br>
 
 All values have defaults however the package will error if portablemc is not found. In this case manual declaration may be needed.
 
@@ -67,7 +67,7 @@ This functions boots an instance of minecraft with the following conditions:
 - Quilt
 - LegacyFabric
 
-> Currently there is no check to ensure that the version selected supports the loader. This will be addressed in a future loader.
+> Currently there is no check to ensure that the version selected supports the loader. This will be addressed in a future version.
 
 ## installOnly
 Setting this to true will stop the launch of the game and only install it.
