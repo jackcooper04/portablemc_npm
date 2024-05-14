@@ -1,177 +1,184 @@
-const fs = require('fs');
+// Dependencies
+const platform = require('os').platform();
 const path = require('path');
-const { Console } = require('console');
+const { Console, error } = require('console');
 const homedir = require('os').homedir();
+const { spawn } = require('node:child_process');
+const fs = require('fs')
 
-var logPath = ""
+// Global Variables
+var MAIN_DIRECTORY_PATH = "";
+var logPath = path.join(__dirname, 'logs');
+var previousAction = 'boot';
+var bootStarted = false;
+var programStart = false;
+var quitCleanly = true;
+
+// Auth Variables
 var AUTHENTICATED_USER = {};
 var AUTHENTICATED_USER_EMAIL = "";
-var MAIN_DIRECTORY = "";
-var portableMCLocation = false;
 
-function config(options) {
-  return new Promise( (resolve) => {
-    if (!options.EXE_LOCATION) {
-      options.EXE_LOCATION = path.join(homedir, 'AppData', 'Roaming', 'Python', 'Python312', 'Scripts', 'portablemc.exe');
-    };
-    if (options.LOG_LOCATION) {
-      declareLogFile(options.LOG_LOCATION);
-    } else {
-      declareLogFile(path.join(__dirname, 'logs'))
-    };
+// OS Dependent Variables
+var EXPECTED_PMC_PATH = "";
+if (platform == "win32") {
+  try {
+    var pythonScriptPath = path.join(homedir, 'AppData', 'Roaming', 'Python');
+    var scriptSources = fs.readdirSync(pythonScriptPath);
 
-    if (options.MAIN_DIR) {
-      MAIN_DIRECTORY = ["--main-dir",options.MAIN_DIR];
+    for (idx in scriptSources) {
+      var scriptPath = fs.existsSync(path.join(pythonScriptPath, scriptSources[idx], 'Scripts', 'portablemc.exe'));
+      if (scriptPath) {
+        portableMCExeFound = true;
+        EXPECTED_PMC_PATH = path.join(pythonScriptPath, scriptSources[idx], 'Scripts', 'portablemc.exe')
+      };
     };
-
-    if (fs.existsSync(options.EXE_LOCATION)) {
-      const PACKAGE_DIRECTORY = path.join(__dirname, 'portablemc.exe');
-      portableMCLocation = options.EXE_LOCATION;
-      const genVersions = executeMCDetached(['search'], false)
-    } else {
-      throw new Error('portableMC.exe not found');
-    };
-  })
+  } catch (error) {
+    EXPECTED_PMC_PATH = "";
+  };
+  MAIN_DIRECTORY_PATH = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
+} else if (platform == 'linux') {
+  EXPECTED_PMC_PATH = path.join(homedir, '.local', 'bin', 'portablemc');
+  MAIN_DIRECTORY_PATH = path.join(homedir, '.minecraft');
+} else {
+  throw new Error('Platform Not Suppourted');
 };
 
 
 
-
-async function executeMC(params, detached) {
+// Config Set
+var ACTUAL_PMC_LOCATION = "";
+function config(options) {
   return new Promise((resolve) => {
-    const logOutput = fs.createWriteStream(path.join(logPath, 'latest.log'));
-    const logger = new Console({ stdout: logOutput });
-    if (detached == undefined) {
-      detached = false;
-    }
+    if (!options.EXE_LOCATION) {
+      options.EXE_LOCATION = EXPECTED_PMC_PATH;
+    };
+    if (options.LOG_LOCATION) {
+      logPath = options.LOG_LOCATION;
+    };
+    if (!fs.existsSync(path.join(logPath, 'auth'))) {
+      fs.mkdirSync(path.join(logPath, 'auth'));
+    };
+    if (!fs.existsSync(path.join(logPath, 'game'))) {
+      fs.mkdirSync(path.join(logPath, 'game'));
+    };
+    if (!fs.existsSync(path.join(logPath, 'other'))) {
+      fs.mkdirSync(path.join(logPath, 'other'));
+    };
 
+    if (options.MAIN_DIR) {
+      MAIN_DIRECTORY_PATH = options.MAIN_DIR;
+    };
+    if (fs.existsSync(options.EXE_LOCATION)) {
+      ACTUAL_PMC_LOCATION = options.EXE_LOCATION;
+    } else {
+      throw new Error('portableMC not found');
+    };
+  })
+};
+
+// Run Config With Default (verifies portablemc install)
+config({});
+
+
+
+// portableMC Communicator
+async function executeMC(params, action) {
+  return new Promise((resolve) => {
+    if (!action) {
+      action = 'other';
+    };
+    var MAIN_DIRECTORY = [];
+    if (MAIN_DIRECTORY_PATH) {
+      MAIN_DIRECTORY = ["--main-dir", MAIN_DIRECTORY_PATH];
+    };
+    quitCleanly = true;
+    const logOutput = fs.createWriteStream(path.join(logPath, action, 'latest.log'));
+    const logger = new Console({ stdout: logOutput });
     const { spawn } = require('node:child_process');
-    const exe = spawn('cmd.exe', ['/C', portableMCLocation,...MAIN_DIRECTORY ,...params],
+    const exe = spawn(ACTUAL_PMC_LOCATION, [...MAIN_DIRECTORY, ...params],
       {
         stdio: 'pipe'
       }
     )
-
-    if (detached) {
-      const viewer = spawn('cmd.exe', ['/C', 'node', path.join(__dirname, 'loggerViewer.js'), logPath],
-        {
-          detached: true,
-        }
-      )
-    }
     exe.on('exit', function (code) {
-      //console.log('child exit code (spawn)', code);
+      if (bootStarted) {
+        bootStarted = false;
+        logger.log('BOOTEND\nPROGRAMEND');
+      } else {
+        logger.log('GAMEEND\nPROGRAMEND');
+      };
       let filename = `${(new Date().toJSON().slice(0, 19))}.log`.replace(/:/g, ";");
-
-      let writer = fs.createWriteStream(path.join(logPath, filename));
-      writer.write(fs.readFileSync(path.join(logPath, 'latest.log')));
-
-      fs.writeFileSync(path.join(logPath, 'latest.log'), '');
-      resolve(true);
-
-    })
+      let writer = fs.createWriteStream(path.join(logPath, action, filename));
+      writer.write(fs.readFileSync(path.join(logPath, action, 'latest.log')));
+      fs.writeFileSync(path.join(logPath, action, 'latest.log'), '');
+      bootStarted = false;
+      previousAction = 'boot';
+      resolve(quitCleanly);
+    });
 
     exe.stdout.on('data', (data) => {
-      //console.log(data);
-      logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
+      if (!bootStarted && !programStart) {
+        logger.log('PROGRAMSTART');
+        logger.log('BOOTSTART');
+        bootStarted = true;
+        programStart = true;
+      };
+      var convertedData = data.toString().replace(/(\r\n|\n|\r)/gm, "splitme").replace(/  +/g, ' ');
+      var action = convertedData.split("splitme").filter(str => /\w+/.test(str));
+      for (idx in action) {
+        var identfyAction = action[idx].match(/(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])/g);
+        if (identfyAction == null) {
+          identfyAction = 'boot';
+        } else {
+          identfyAction = 'game';
+        };
+        if (identfyAction != previousAction && previousAction != 'game' && bootStarted) {
+          logger.log('\nBOOTEND');
+          bootStarted = false;
+          logger.log('GAMESTART');
+        };
+        console.log(action[idx])
+        logger.log(action[idx]);
+        if (action[idx].includes('Game crashed!')) {
+          quitCleanly = false;
+        };
+        previousAction = identfyAction;
+      };
     });
-
-
     exe.stderr.on('data', (data) => {
-      logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
-      //console.error(data.toString());
+      //logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
+      console.error(data.toString());
     });
   });
-
-}
-
-function executeMCDetached(params, detached) {
-
-  const logOutput = fs.createWriteStream(path.join(logPath, 'latest.log'));
-  const logger = new Console({ stdout: logOutput });
-  if (detached == undefined) {
-    detached = false;
-  }
-
-  const { spawn } = require('node:child_process');
-  const exe = spawn('cmd.exe', ['/C', portableMCLocation, ...MAIN_DIRECTORY,...params],
-    {
-      stdio: 'pipe'
-    }
-  )
-
-  if (detached) {
-    const viewer = spawn('cmd.exe', ['/C', 'node', path.join(__dirname, 'loggerViewer.js'), logPath],
-      {
-        detached: true,
-      }
-    )
-  }
-  exe.on('exit', function (code) {
-    //console.log('child exit code (spawn)', code);
-    let filename = `${(new Date().toJSON().slice(0, 19))}.log`.replace(/:/g, ";");
-
-    let writer = fs.createWriteStream(path.join(logPath, filename));
-    writer.write(fs.readFileSync(path.join(logPath, 'latest.log')));
-
-    fs.writeFileSync(path.join(logPath, 'latest.log'), '');
-
-  })
-
-  exe.stdout.on('data', (data) => {
-    logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
-  });
-
-
-  exe.stderr.on('data', (data) => {
-    logger.log(data.toString().replace(/(\r\n|\n|\r)/gm, ""));
-    //console.error(data.toString());
-  });
-
-}
-
-function getAuthedUsers() {
-  var minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
-  var authFile = JSON.parse(fs.readFileSync(path.join(minecraftDIR, 'portablemc_auth.json')));
-  var sessions = authFile.microsoft.sessions;
-  var loggedProfiles = new Array();
-  for (idx in sessions) {
-    var obj = {
-      email_safe: idx.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2"),
-      email: idx,
-      username: sessions[idx].username,
-      uuid: sessions[idx].uuid,
-    }
-    loggedProfiles.push(obj)
-  };
-  return loggedProfiles;
-
 };
+
+// Authenticate Users (Microsoft Only)
 
 async function authenticate(email) {
   return new Promise(async (resolve) => {
-    var minecraftDIR = path.join(homedir, 'AppData', 'Roaming', '.minecraft');
-    if (fs.existsSync(minecraftDIR)) {
-      var authFile = path.join(minecraftDIR, 'portablemc_auth.json');
+    if (fs.existsSync(MAIN_DIRECTORY_PATH)) {
+      var authFile = path.join(MAIN_DIRECTORY_PATH, 'portablemc_auth.json');
       if (fs.existsSync(authFile)) {
         var authData = JSON.parse(fs.readFileSync(authFile));
-        var loggedUsers = authData.microsoft.sessions;
-        if (loggedUsers[email]) {
-          var authObj = {
-            username: loggedUsers[email].username,
-            uuid: loggedUsers[email].uuid,
-            email: email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
+        if (authData.microsoft) {
+          var loggedUsers = authData.microsoft.sessions;
+          if (loggedUsers[email]) {
+            var authObj = {
+              username: loggedUsers[email].username,
+              uuid: loggedUsers[email].uuid,
+              email: email.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2")
+            };
+            AUTHENTICATED_USER = authObj;
+            AUTHENTICATED_USER_EMAIL = email;
+            resolve(AUTHENTICATED_USER);
+            return;
           };
-          AUTHENTICATED_USER = authObj;
-          AUTHENTICATED_USER_EMAIL = email;
-          resolve(AUTHENTICATED_USER);
-          return;
-        };
+        }
       };
     };
 
 
-    const userLoggedIn = await loginBrowser(email);
+    const logUserIn = await executeMC(['login', '--auth-service', 'microsoft', email], 'auth');
     var authData = JSON.parse(fs.readFileSync(authFile));
     var loggedUsers = authData.microsoft.sessions;
     if (loggedUsers[email]) {
@@ -186,68 +193,84 @@ async function authenticate(email) {
       return;
     };
   })
-}
+};
 
-async function loginBrowser(email) {
-  return new Promise(async (resolve) => {
-    const login = await executeMC(['login', '--auth-service', 'microsoft', email], true);
-    resolve(true);
-  });
+// Get Array of Authenticated Users
+function getAuthedUsers() {
+  try {
+    var authFile = JSON.parse(fs.readFileSync(path.join(MAIN_DIRECTORY_PATH, 'portablemc_auth.json')));
+    if (authFile.microsoft) {
+      var sessions = authFile.microsoft.sessions;
+      var loggedProfiles = new Array();
+      for (idx in sessions) {
+        var obj = {
+          email_safe: idx.replace(/(\w{3})[\w.-]+@([\w.]+\w)/, "$1***@$2"),
+          email: idx,
+          username: sessions[idx].username,
+          uuid: sessions[idx].uuid,
+        }
+        loggedProfiles.push(obj)
+      };
+      return loggedProfiles;
+    }
+  } catch (err) {
+    return [];
+  };
+
 };
 
 
-
+//Logout Account
 async function logout(email) {
   return new Promise(async (resolve) => {
-    const logout = await executeMC(['logout', '--auth-service', 'microsoft', email]);
+    const logout = await executeMC(['logout', '--auth-service', 'microsoft', email],'auth');
     AUTHENTICATED_USER = {};
     AUTHENTICATED_USER_EMAIL = "";
   })
 };
 
-async function startGame(options, logs) {
-  return new Promise(async (resolve) => {
-    if (options.loader == undefined) {
-      const start = await executeMC(['start', options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
-      resolve(true)
-    } else {
-      const start = await executeMC(['start', options.loader + ":" + options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
-      resolve(true)
-    };
-  })
-};
+//Launch Game
 
-async function installGame(options, logs) {
-  return new Promise(async (resolve) => {
-    if (options.loader == undefined) {
-      const start = await executeMC(['start', options.version, '--dry'], logs);
-      resolve(true)
-    } else {
-      const start = await executeMC(['start', options.loader + ":" + options.version, '--dry'], logs);
-      resolve(true)
-    };
-  })
-
-
-};
-
-function startGameDetached(options, logs) {
-  if (options.loader == undefined) {
-    executeMCDetached(['start', options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
-  } else {
-    executeMCDetached(['start', options.loader + ":" + options.version, '-l', AUTHENTICATED_USER_EMAIL], logs);
+async function launchGame(options,installOnly) {
+  var dryParam = [];
+  if (installOnly) {
+    dryParam = ['--dry']
   };
-
+  return new Promise(async (resolve) => {
+    if (!options.version) {
+      options.version = 'release';
+    };
+    if (!options.loader) {
+      options.loader = 'standard';
+    };
+    var allowedLoaders = ['standard','forge','neoforge','legacyfabric','quilt','fabric'];
+    if (!allowedLoaders.includes(options.loader)) {
+      resolve(false);
+      return;
+    };
+    if (!fs.existsSync(path.join(MAIN_DIRECTORY_PATH,'portablemc_version_manifest.json'))) {
+      const genVersions = await executeMC(['search']);
+    };
+    const versionManifest = JSON.parse(fs.readFileSync(path.join(MAIN_DIRECTORY_PATH,'portablemc_version_manifest.json')));
+    if (options.version == 'release') {
+      options.version = versionManifest.latest.release;
+    };
+    if (options.version == 'snapshot') {
+      options.version = versionManifest.latest.snapshot;
+    };
+    var foundVersion = versionManifest.versions.find(version => version.id === options.version) || false;
+    if (foundVersion) {
+      var bootString = `${options.loader}:${options.version}`;
+      const start = await executeMC(['start', bootString, ...dryParam ,'-l', AUTHENTICATED_USER_EMAIL], 'game');
+      resolve(start);
+    } else {
+      resolve(false);
+    };
+  })
 };
 
-function declareLogFile(path) {
-  logPath = path;
-};
-
-function getLogPath() {
-  return logPath;
-}
 
 
 
-module.exports = { config, startGame, authenticate, logout, getLogPath, startGameDetached, getAuthedUsers, installGame }
+
+module.exports = { config,launchGame,authenticate,logout,getAuthedUsers }
