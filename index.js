@@ -71,21 +71,13 @@ function config(options) {
     if (fs.existsSync(options.EXE_LOCATION)) {
       ACTUAL_PMC_LOCATION = options.EXE_LOCATION;
     } else {
-      throw new Error('portableMC.exe not found');
+      throw new Error('portableMC not found');
     };
   })
 };
 
 // Run Config With Default (verifies portablemc install)
 config({});
-tester();
-async function tester() {
-  const auth = await authenticate('jc3053765@gmail.com');
-  console.log(getAuthedUsers())
-  const start = await startGame({version:'1.8',loader:'forge'},true)
-  console.log(start)
-}
-
 
 
 
@@ -237,10 +229,12 @@ async function logout(email) {
   })
 };
 
-async function startGame(options,dry) {
-  var dryString = [];
-  if (dry) {
-    dryString = ['--dry']
+//Launch Game
+
+async function launchGame(options,installOnly) {
+  var dryParam = [];
+  if (installOnly) {
+    dryParam = ['--dry']
   };
   return new Promise(async (resolve) => {
     if (!options.version) {
@@ -249,7 +243,7 @@ async function startGame(options,dry) {
     if (!options.loader) {
       options.loader = 'standard';
     };
-    var allowedLoaders = ['standard','forge','neoforge','legacyfabric','quilt'];
+    var allowedLoaders = ['standard','forge','neoforge','legacyfabric','quilt','fabric'];
     if (!allowedLoaders.includes(options.loader)) {
       resolve(false);
       return;
@@ -267,8 +261,8 @@ async function startGame(options,dry) {
     var foundVersion = versionManifest.versions.find(version => version.id === options.version) || false;
     if (foundVersion) {
       var bootString = `${options.loader}:${options.version}`;
-      const start = await executeMC(['start', bootString, ...dryString ,'-l', AUTHENTICATED_USER_EMAIL], 'game');
-      resolve(true);
+      const start = await executeMC(['start', bootString, ...dryParam ,'-l', AUTHENTICATED_USER_EMAIL], 'game');
+      resolve(start);
     } else {
       resolve(false);
     };
@@ -279,4 +273,4 @@ async function startGame(options,dry) {
 
 
 
-module.exports = { config }
+module.exports = { config,launchGame,authenticate,logout,getAuthedUsers }
