@@ -9,7 +9,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/jackcooper04/portablemc_npm.git"
+    "url": "git+https://github.com/jackcooper04/portablemc_npm.git"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
